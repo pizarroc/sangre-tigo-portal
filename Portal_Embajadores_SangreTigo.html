@@ -830,12 +830,17 @@
         </template>
 
         <!-- Form actions -->
-        <div class="flex gap-3 pt-3 border-t border-gray-100 mt-2">
-          <button class="btn-green" @click="saveAdminForm()">
-            <i class="fas fa-save mr-1"></i>
-            <span x-text="adminFormMode==='add' ? 'Agregar' : 'Guardar cambios'"></span>
+        <div class="flex gap-3 pt-3 border-t border-gray-100 mt-2 items-center flex-wrap">
+          <button class="btn-green" @click="saveAdminForm()" :disabled="githubUploading">
+            <template x-if="!githubUploading">
+              <span><i class="fas fa-save mr-1"></i><span x-text="adminFormMode==='add' ? 'Agregar' : 'Guardar cambios'"></span></span>
+            </template>
+            <template x-if="githubUploading">
+              <span><i class="fas fa-spinner fa-spin mr-1"></i>Subiendo a GitHub...</span>
+            </template>
           </button>
-          <button class="btn-secondary btn-sm" @click="cancelAdminForm()"><i class="fas fa-times mr-1"></i>Cancelar</button>
+          <button class="btn-secondary btn-sm" @click="cancelAdminForm()" :disabled="githubUploading"><i class="fas fa-times mr-1"></i>Cancelar</button>
+          <span x-show="githubUploading" class="text-xs text-gray-400">Subiendo archivo al repositorio, por favor espera...</span>
         </div>
       </div>
 
@@ -864,7 +869,11 @@
                 <tr class="border-b border-gray-100 hover:bg-gray-50">
                   <td class="px-4 py-3">
                     <div class="font-medium text-gray-800" x-text="r.title"></div>
-                    <div class="text-xs text-gray-400 mt-0.5" x-show="r.file" x-text="r.file"></div>
+                    <div class="text-xs mt-0.5 flex items-center gap-1" x-show="r.file">
+                      <i class="fab fa-github text-gray-400" x-show="r.githubHosted"></i>
+                      <i class="fas fa-hdd text-gray-300" x-show="!r.githubHosted && r.fileData"></i>
+                      <span class="text-gray-400" x-text="r.file"></span>
+                    </div>
                   </td>
                   <td class="px-4 py-3 hidden md:table-cell"><span class="badge badge-agiles" style="font-size:.7rem;padding:2px 8px" x-text="r.tipo"></span></td>
                   <td class="px-4 py-3 hidden md:table-cell"><span class="badge" :class="'badge-'+(r.valor==='todos'?'todos':r.valor)" x-text="r.valor" style="font-size:.7rem;padding:2px 8px"></span></td>
@@ -1030,6 +1039,47 @@
                 </div>
               </div>
             </div>
+            <div class="mt-5 pt-4 border-t border-gray-100 flex justify-end">
+              <button @click="resetToDefaults()"
+                      class="text-xs text-red-400 hover:text-red-600 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                <i class="fas fa-undo mr-1"></i>Restablecer datos de fábrica
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- GitHub Config card -->
+        <div class="bg-white rounded-xl p-5 shadow-sm mt-5" style="border-left:4px solid var(--cyan)">
+          <h3 class="font-bold text-gray-700 mb-1 flex items-center gap-2">
+            <i class="fab fa-github" style="color:var(--navy)"></i>
+            Conectar con GitHub
+          </h3>
+          <p class="text-xs text-gray-400 mb-4">Configura tu token para que los archivos subidos desde el panel de Admin se guarden en el repositorio y queden disponibles desde cualquier dispositivo.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <div class="md:col-span-2">
+              <label class="text-xs font-semibold text-gray-500 block mb-1">Token de GitHub <span class="font-normal text-gray-400">(scope <code>public_repo</code>)</span></label>
+              <div class="relative">
+                <i class="fas fa-key" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#cbd5e1"></i>
+                <input type="password" x-model="githubConfig.token" placeholder="ghp_..." style="padding-left:36px">
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500 block mb-1">Usuario GitHub</label>
+              <input type="text" x-model="githubConfig.owner" placeholder="pizarroc">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500 block mb-1">Repositorio</label>
+              <input type="text" x-model="githubConfig.repo" placeholder="sangre-tigo-portal">
+            </div>
+          </div>
+          <div class="flex gap-3 items-center flex-wrap">
+            <button @click="testGithubConnection()" class="btn-secondary btn-sm">
+              <i class="fas fa-plug mr-1"></i>Probar conexión
+            </button>
+            <button @click="saveGithubConfig()" class="btn-green">
+              <i class="fas fa-save mr-1"></i>Guardar configuración
+            </button>
+            <span class="text-sm font-medium" x-text="githubTestStatus" x-show="githubTestStatus"></span>
           </div>
         </div>
 
@@ -1124,6 +1174,9 @@ function app() {
     adminForm: {},
     adminAuthenticated: false,
     loginModal: { show: false, username: '', password: '', error: '', shake: false },
+    githubConfig: { token: '', owner: 'pizarroc', repo: 'sangre-tigo-portal' },
+    githubUploading: false,
+    githubTestStatus: '',
     resourceSearch: '',
     resourceFilter: { valor: '', tipo: '', audiencia: '' },
     videoFilter: '',
@@ -1338,10 +1391,104 @@ function app() {
     messages: [],
 
     init() {
-      this._initResources();
-      this._initVideos();
-      this._initDynamics();
-      this._initMessages();
+      this._loadGithubConfig();
+      if (!this._loadFromStorage()) {
+        this._initResources();
+        this._initVideos();
+        this._initDynamics();
+        this._initMessages();
+      }
+    },
+
+    // ── GitHub integration ────────────────────────────────
+    _loadGithubConfig() {
+      try {
+        const cfg = localStorage.getItem('sangreTigoGithubConfig');
+        if (cfg) this.githubConfig = JSON.parse(cfg);
+      } catch(e) {}
+    },
+
+    saveGithubConfig() {
+      localStorage.setItem('sangreTigoGithubConfig', JSON.stringify(this.githubConfig));
+      this.githubTestStatus = '✅ Configuración guardada';
+      setTimeout(() => { this.githubTestStatus = ''; }, 2500);
+    },
+
+    async testGithubConnection() {
+      const { token, owner, repo } = this.githubConfig;
+      if (!token) { this.githubTestStatus = '⚠️ Ingresa el token primero'; return; }
+      this.githubTestStatus = '⏳ Probando conexión...';
+      try {
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+          headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' }
+        });
+        if (res.ok) {
+          this.githubTestStatus = '✅ Conexión exitosa — archivos se guardarán en GitHub';
+          this.saveGithubConfig();
+        } else {
+          this.githubTestStatus = `❌ Error ${res.status}: token inválido o repositorio no encontrado`;
+        }
+      } catch(e) {
+        this.githubTestStatus = '❌ Error de red: ' + e.message;
+      }
+    },
+
+    async _uploadFileToGithub(filename, base64DataUrl) {
+      const { token, owner, repo } = this.githubConfig;
+      if (!token) return false;
+      try {
+        this.githubUploading = true;
+        const base64 = base64DataUrl.split(',')[1];
+        let sha = null;
+        try {
+          const check = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filename}`, {
+            headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' }
+          });
+          if (check.ok) { const ex = await check.json(); sha = ex.sha; }
+        } catch(e) {}
+        const body = { message: `Portal Admin: ${sha ? 'actualizar' : 'agregar'} ${filename}`, content: base64 };
+        if (sha) body.sha = sha;
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filename}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
+          body: JSON.stringify(body)
+        });
+        this.githubUploading = false;
+        return res.ok;
+      } catch(e) {
+        this.githubUploading = false;
+        console.error('GitHub upload error:', e);
+        return false;
+      }
+    },
+
+    _loadFromStorage() {
+      try {
+        const raw = localStorage.getItem('sangreTigoPortalData');
+        if (!raw) return false;
+        const d = JSON.parse(raw);
+        if (d.resources  && d.resources.length)  this.resources = d.resources;
+        if (d.videos     && d.videos.length)      this.videos    = d.videos;
+        if (d.dynamics   && d.dynamics.length)    this.dynamics  = d.dynamics;
+        if (d.messages   && d.messages.length)    this.messages  = d.messages;
+        return !!(d.resources || d.videos || d.dynamics || d.messages);
+      } catch(e) {
+        console.warn('Error cargando datos guardados:', e);
+        return false;
+      }
+    },
+
+    _saveToStorage() {
+      try {
+        localStorage.setItem('sangreTigoPortalData', JSON.stringify({
+          resources: this.resources,
+          videos:    this.videos,
+          dynamics:  this.dynamics,
+          messages:  this.messages
+        }));
+      } catch(e) {
+        console.warn('Error guardando datos:', e);
+      }
     },
 
     _initResources() {
@@ -1618,7 +1765,7 @@ function app() {
       return {};
     },
 
-    saveAdminForm() {
+    async saveAdminForm() {
       const tab = this.adminTab;
       const mode = this.adminFormMode;
       const f = this.adminForm;
@@ -1627,6 +1774,17 @@ function app() {
       if (tab === 'videos' && (!f.title.trim() || !f.url.trim())) { alert('Título y URL son obligatorios.'); return; }
       if (tab === 'dinamicas' && !f.title.trim()) { alert('El nombre es obligatorio.'); return; }
       if (tab === 'mensajes' && !f.text.trim()) { alert('El mensaje no puede estar vacío.'); return; }
+
+      // Upload file to GitHub if configured
+      if (tab === 'recursos' && f.fileData && f.file && this.githubConfig.token) {
+        const ok = await this._uploadFileToGithub(f.file, f.fileData);
+        if (ok) {
+          f.fileData = null;      // drop base64 — file now served from GitHub Pages
+          f.githubHosted = true;  // mark as GitHub-hosted
+        } else {
+          if (!confirm('No se pudo subir el archivo a GitHub. ¿Guardarlo localmente (solo en este navegador)?')) return;
+        }
+      }
 
       if (mode === 'add') {
         const id = this._nextAdminId(tab);
@@ -1661,6 +1819,7 @@ function app() {
           if (idx >= 0) this.messages[idx] = { id, text: f.text, categories: cats.length ? cats : ['general'] };
         }
       }
+      this._saveToStorage();
       this.adminMode = 'list';
       this.adminEditingId = null;
     },
@@ -1678,6 +1837,7 @@ function app() {
       else if (type === 'videos') this.videos = this.videos.filter(v => v.id !== id);
       else if (type === 'dinamicas') this.dynamics = this.dynamics.filter(d => d.id !== id);
       else if (type === 'mensajes') this.messages = this.messages.filter(m => m.id !== id);
+      this._saveToStorage();
     },
 
     _nextAdminId(type) {
@@ -1698,6 +1858,15 @@ function app() {
         this.adminForm = Object.assign({}, this.adminForm, { file: name, fileData: ev.target.result });
       };
       reader.readAsDataURL(file);
+    },
+
+    resetToDefaults() {
+      if (!confirm('¿Restablecer todos los datos a los valores originales? Se perderán todos los cambios del panel de admin.')) return;
+      localStorage.removeItem('sangreTigoPortalData');
+      this._initResources();
+      this._initVideos();
+      this._initDynamics();
+      this._initMessages();
     },
 
     // legacy shims (keep for compatibility)
