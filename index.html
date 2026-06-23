@@ -1191,9 +1191,9 @@
                   </select>
                 </div>
               </div>
-              <div class="flex items-center gap-2 mt-1" x-show="userFormMode === 'add'">
+              <div class="flex items-center gap-2 mt-1">
                 <input type="checkbox" id="tmpPwd" x-model="userForm.mustChangePassword" class="w-4 h-4 rounded" style="accent-color:var(--cyan)">
-                <label for="tmpPwd" class="text-sm text-gray-600 cursor-pointer">Contraseña temporal <span class="text-gray-400 text-xs">(el usuario deberá cambiarla en su primer login)</span></label>
+                <label for="tmpPwd" class="text-sm text-gray-600 cursor-pointer">Contraseña temporal <span class="text-gray-400 text-xs">(el usuario deberá cambiarla en su próximo login)</span></label>
               </div>
               <div x-show="userFormError" class="mb-3 px-3 py-2 rounded-lg text-sm text-red-600" style="background:#fef2f2;border:1px solid #fecaca" x-text="userFormError"></div>
               <div class="flex gap-2">
@@ -1696,7 +1696,7 @@ function app() {
         this.userForm = { username: '', password: '', role: 'embajador' };
       } else {
         this.userEditingId = user.id;
-        this.userForm = { username: user.username, password: '', role: user.role };
+        this.userForm = { username: user.username, password: '', role: user.role, mustChangePassword: !!user.mustChangePassword };
       }
       this.showUserForm = true;
     },
@@ -1716,6 +1716,7 @@ function app() {
           this.adminUsers[idx].username = uname;
           this.adminUsers[idx].role = this.userForm.role;
           if (this.userForm.password) this.adminUsers[idx].password = this.userForm.password;
+          this.adminUsers[idx].mustChangePassword = !!this.userForm.mustChangePassword;
         }
       }
       this._saveUsers();
