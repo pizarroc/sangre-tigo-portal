@@ -351,7 +351,7 @@
                 <!-- Key Message -->
                 <div class="rounded-xl p-5 mb-6" style="background:var(--lightblue);border-left:4px solid var(--cyan)">
                   <div class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--cyan)">Mensaje Clave</div>
-                  <p class="font-bold text-lg" style="color:var(--navy)" x-text="selectedValue.keyMessage"></p>
+                  <p class="font-bold text-lg" style="color:var(--navy)" x-text="keyMessages[selectedValue.id] || selectedValue.keyMessage"></p>
                 </div>
 
                 <!-- Story -->
@@ -1135,6 +1135,37 @@
           </table>
         </div>
 
+
+        <!-- Mensajes Clave por Valor -->
+        <div x-show="adminTab==='mensajes'" class="bg-white rounded-xl shadow-sm p-5 mt-5">
+          <h3 class="font-bold text-gray-700 mb-1 flex items-center gap-2"><i class="fas fa-star" style="color:var(--navy)"></i> Mensajes Clave por Valor</h3>
+          <p class="text-xs text-gray-400 mb-4">Este mensaje aparece destacado en la parte superior de cada valor. Edítalo aquí para actualizarlo en el portal.</p>
+          <div class="flex flex-col gap-3">
+            <template x-for="v in valuesData" :key="v.id">
+              <div class="rounded-xl border border-gray-200 p-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <span x-text="v.emoji"></span>
+                  <span class="font-bold text-sm" :style="`color:${v.color}`" x-text="v.name"></span>
+                </div>
+                <textarea
+                  class="w-full border border-gray-200 rounded-lg p-2 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2"
+                  :style="`focus:ring-color:${v.color}`"
+                  rows="2"
+                  :value="keyMessages[v.id] || v.keyMessage"
+                  @input="keyMessages[v.id] = $event.target.value; _saveToStorage()"
+                  placeholder="Mensaje clave...">
+                </textarea>
+                <button
+                  x-show="keyMessages[v.id] && keyMessages[v.id] !== v.keyMessage"
+                  @click="delete keyMessages[v.id]; keyMessages = {...keyMessages}; _saveToStorage()"
+                  class="text-xs text-gray-400 hover:text-red-400 mt-1">
+                  <i class="fas fa-undo mr-1"></i>Restaurar original
+                </button>
+              </div>
+            </template>
+          </div>
+        </div>
+
         <!-- Stats -->
         <div x-show="adminTab==='stats'">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1655,6 +1686,7 @@ function app() {
     videos: [],
     dynamics: [],
     messages: [],
+    keyMessages: {},  // overrides for value keyMessages, persisted in localStorage
 
     init() {
       this._loadGithubConfig();
@@ -1892,6 +1924,7 @@ function app() {
         if (d.videos     && d.videos.length)      this.videos    = d.videos;
         if (d.dynamics   && d.dynamics.length)    this.dynamics  = d.dynamics;
         if (d.messages   && d.messages.length)    this.messages  = d.messages;
+        if (d.keyMessages)                            this.keyMessages = d.keyMessages;
         return !!(d.resources || d.videos || d.dynamics || d.messages);
       } catch(e) {
         console.warn('Error cargando datos guardados:', e);
@@ -1905,7 +1938,8 @@ function app() {
           resources: this.resources,
           videos:    this.videos,
           dynamics:  this.dynamics,
-          messages:  this.messages
+          messages:  this.messages,
+          keyMessages: this.keyMessages
         }));
       } catch(e) {
         console.warn('Error guardando datos:', e);
