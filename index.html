@@ -80,6 +80,7 @@
 
     /* Portal Login Screen */
     .portal-login-bg { background: linear-gradient(135deg, #001833 0%, #002855 55%, #003a7a 100%); }
+    .change-pwd-overlay { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; background:rgba(0,26,61,0.8); backdrop-filter:blur(5px); }
     .portal-login-card { background:white; border-radius:20px; box-shadow:0 24px 80px rgba(0,0,0,0.5); }
     .portal-login-overlay { position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center; }
     .session-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 8px 16px; border-radius:8px; font-size:0.8rem; }
@@ -137,6 +138,50 @@
   </div>
 </div>
 
+<!-- ==================== CHANGE PASSWORD OVERLAY ==================== -->
+<div x-show="changePwdForm.show" x-cloak class="change-pwd-overlay">
+  <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full mx-4" style="max-width:400px"
+       :class="changePwdForm.shake ? 'login-shake' : ''">
+    <div class="px-8 py-6 text-center text-white" style="background:var(--navy)">
+      <div class="flex items-center justify-center w-12 h-12 rounded-full mx-auto mb-3" style="background:rgba(255,255,255,0.1)">
+        <i class="fas fa-key text-xl" style="color:var(--yellow)"></i>
+      </div>
+      <div class="font-black text-lg">Actualizar Contraseña</div>
+      <div class="text-xs mt-1" style="color:rgba(255,255,255,0.5)">Debes crear una contraseña nueva para continuar</div>
+    </div>
+    <div class="px-8 py-6">
+      <div class="mb-4 px-3 py-2 rounded-lg text-sm text-amber-700 flex items-start gap-2" style="background:#fffbeb;border:1px solid #fde68a">
+        <i class="fas fa-exclamation-triangle mt-0.5"></i>
+        <span>Tu cuenta tiene una contraseña temporal. Por seguridad, debes cambiarla antes de continuar.</span>
+      </div>
+      <div class="mb-4">
+        <label class="text-xs font-semibold block mb-1.5" style="color:#64748b">Nueva contraseña</label>
+        <div class="relative">
+          <i class="fas fa-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#cbd5e1"></i>
+          <input type="password" x-model="changePwdForm.newPassword" @keydown.enter="saveNewPassword()"
+                 placeholder="Ingresa tu nueva contraseña" style="padding-left:36px">
+        </div>
+      </div>
+      <div class="mb-5">
+        <label class="text-xs font-semibold block mb-1.5" style="color:#64748b">Confirmar contraseña</label>
+        <div class="relative">
+          <i class="fas fa-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#cbd5e1"></i>
+          <input type="password" x-model="changePwdForm.confirmPassword" @keydown.enter="saveNewPassword()"
+                 placeholder="Repite la contraseña" style="padding-left:36px">
+        </div>
+      </div>
+      <div x-show="changePwdForm.error" class="mb-4 px-3 py-2 rounded-lg text-sm font-medium text-center"
+           style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626" x-text="changePwdForm.error"></div>
+      <button @click="saveNewPassword()" class="w-full py-3 rounded-xl font-bold text-white text-sm tracking-wide"
+        style="background:var(--navy);"
+        onmouseover="this.style.background='var(--cyan)'"
+        onmouseout="this.style.background='var(--navy)'">
+        <i class="fas fa-check mr-2"></i>Guardar nueva contraseña
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- MOBILE HEADER -->
 <div class="mobile-header" style="display:flex">
   <div class="brand-mark">
@@ -150,6 +195,7 @@
 <div class="mobile-menu" x-show="mobileMenuOpen" @click.away="mobileMenuOpen = false" x-cloak>
   <template x-for="item in navItems" :key="item.id">
     <div class="sidebar-link" :class="{ active: currentSection === item.id }"
+         x-show="item.id !== 'admin' || isAdmin"
          @click="navigate(item.id); mobileMenuOpen = false">
       <span class="icon"><i :class="item.icon"></i></span>
       <span x-text="item.label"></span>
@@ -177,6 +223,7 @@
     <nav class="flex-1">
       <template x-for="item in navItems" :key="item.id">
         <div class="sidebar-link" :class="{ active: currentSection === item.id }"
+             x-show="item.id !== 'admin' || isAdmin"
              @click="navigate(item.id)">
           <span class="icon"><i :class="item.icon"></i></span>
           <span x-text="item.label"></span>
@@ -926,13 +973,6 @@
       <!-- ── LIST PANELS ── -->
       <div x-show="adminMode === 'list'">
 
-        <!-- Add button -->
-        <div x-show="adminTab !== 'stats'" class="flex justify-end mb-3">
-          <button class="btn-green" @click="initAdminForm('add')">
-            <i class="fas fa-plus mr-1"></i>Agregar <span x-text="adminTabLabel"></span>
-          </button>
-        </div>
-
         <!-- Recursos list -->
         <div x-show="adminTab==='recursos'" class="bg-white rounded-xl shadow-sm overflow-x-auto">
           <table class="w-full text-sm">
@@ -1154,6 +1194,10 @@
                   </select>
                 </div>
               </div>
+              <div class="flex items-center gap-2 mt-1" x-show="userFormMode === 'add'">
+                <input type="checkbox" id="tmpPwd" x-model="userForm.mustChangePassword" class="w-4 h-4 rounded" style="accent-color:var(--cyan)">
+                <label for="tmpPwd" class="text-sm text-gray-600 cursor-pointer">Contraseña temporal <span class="text-gray-400 text-xs">(el usuario deberá cambiarla en su primer login)</span></label>
+              </div>
               <div x-show="userFormError" class="mb-3 px-3 py-2 rounded-lg text-sm text-red-600" style="background:#fef2f2;border:1px solid #fecaca" x-text="userFormError"></div>
               <div class="flex gap-2">
                 <button @click="saveUserForm()" class="btn-green btn-sm"><i class="fas fa-save mr-1"></i>Guardar</button>
@@ -1179,7 +1223,10 @@
                       </div>
                     </td>
                     <td>
-                      <span class="badge text-xs" :style="u.role==='admin' ? 'background:var(--navy);color:white' : 'background:var(--lightblue);color:var(--navy)'" x-text="u.role==='admin' ? 'Administrador' : 'Embajador'"></span>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="badge text-xs" :style="u.role==='admin' ? 'background:var(--navy);color:white' : 'background:var(--lightblue);color:var(--navy)'" x-text="u.role==='admin' ? 'Administrador' : 'Embajador'"></span>
+                        <span x-show="u.mustChangePassword" class="badge text-xs" style="background:#fef9c3;color:#854d0e;border:1px solid #fde047"><i class="fas fa-clock mr-1"></i>Contraseña temporal</span>
+                      </div>
                     </td>
                     <td>
                       <div class="flex gap-1">
@@ -1362,6 +1409,8 @@ function app() {
     userFormError: '',
     sessionConfig: { timeoutHours: 8 },
     sessionConfigSaved: false,
+    portalCurrentUserRole: '',
+    changePwdForm: { show: false, newPassword: '', confirmPassword: '', error: '', shake: false, userId: null },
     githubConfig: { token: '', owner: 'pizarroc', repo: 'sangre-tigo-portal' },
     githubUploading: false,
     githubTestStatus: '',
@@ -1663,7 +1712,7 @@ function app() {
       if (dup) { this.userFormError = 'Ya existe un usuario con ese nombre.'; return; }
       if (this.userFormMode === 'add') {
         const newId = this.adminUsers.length ? Math.max(...this.adminUsers.map(u => u.id)) + 1 : 1;
-        this.adminUsers.push({ id: newId, username: uname, password: this.userForm.password, role: this.userForm.role });
+        this.adminUsers.push({ id: newId, username: uname, password: this.userForm.password, role: this.userForm.role, mustChangePassword: !!this.userForm.mustChangePassword });
       } else {
         const idx = this.adminUsers.findIndex(u => u.id === this.userEditingId);
         if (idx >= 0) {
@@ -1717,24 +1766,19 @@ function app() {
     _restoreSession() {
       const portalUser = this._isSessionValid('portal');
       if (portalUser && portalUser !== 'expired') {
-        this.portalAuthenticated = true;
-        this.portalCurrentUser = portalUser;
+        const user = this.adminUsers.find(u => u.username === portalUser);
+        if (user) {
+          this.portalAuthenticated = true;
+          this.portalCurrentUser = user.username;
+          this.portalCurrentUserRole = user.role;
+          this.adminAuthenticated = (user.role === 'admin');
+          this.adminCurrentUser = (user.role === 'admin') ? user.username : '';
+        }
       } else {
         this.portalAuthenticated = false;
         if (portalUser === 'expired') {
           this.portalLoginForm.sessionExpired = true;
           this._clearSession('portal');
-        }
-      }
-      const adminUser = this._isSessionValid('admin');
-      if (adminUser && adminUser !== 'expired') {
-        this.adminAuthenticated = true;
-        this.adminCurrentUser = adminUser;
-      } else {
-        this.adminAuthenticated = false;
-        if (adminUser === 'expired') {
-          this.loginModal.sessionExpired = true;
-          this._clearSession('admin');
         }
       }
     },
@@ -1989,11 +2033,12 @@ function app() {
       this.messages = data.map((m, i) => ({ ...m, id: i + 1 }));
     },
 
+    get isAdmin() {
+      return this.portalAuthenticated && this.portalCurrentUserRole === 'admin';
+    },
+
     navigate(section) {
-      if (section === 'admin' && !this.adminAuthenticated) {
-        this.loginModal = { show: true, username: '', password: '', error: '', shake: false };
-        return;
-      }
+      if (section === 'admin' && !this.isAdmin) return;
       this.currentSection = section;
       if (section !== 'valores') this.selectedValue = null;
       window.scrollTo(0, 0);
@@ -2088,10 +2133,8 @@ function app() {
     },
 
     adminLogout() {
-      this._clearSession('admin');
-      this.adminAuthenticated = false;
-      this.adminCurrentUser = '';
       this.currentSection = 'inicio';
+      this.portalLogout();
     },
 
     // ── Portal login ──────────────────────────────────────
@@ -2100,10 +2143,12 @@ function app() {
       const p = this.portalLoginForm.password;
       const user = this._findUser(uname, p);
       if (user) {
-        this.portalAuthenticated = true;
-        this.portalCurrentUser = user.username;
-        this._saveSession('portal', user.username);
-        this.portalLoginForm = { username: '', password: '', error: '', shake: false, sessionExpired: false };
+        if (user.mustChangePassword) {
+          this.changePwdForm = { show: true, newPassword: '', confirmPassword: '', error: '', shake: false, userId: user.id };
+          this.portalLoginForm = { username: '', password: '', error: '', shake: false, sessionExpired: false };
+          return;
+        }
+        this._loginPortalUser(user);
       } else {
         this.portalLoginForm.error = 'Usuario o contraseña incorrectos.';
         this.portalLoginForm.shake = true;
@@ -2111,10 +2156,43 @@ function app() {
       }
     },
 
+    _loginPortalUser(user) {
+      this.portalAuthenticated = true;
+      this.portalCurrentUser = user.username;
+      this.portalCurrentUserRole = user.role;
+      this.adminAuthenticated = (user.role === 'admin');
+      this.adminCurrentUser = (user.role === 'admin') ? user.username : '';
+      this._saveSession('portal', user.username);
+      this.portalLoginForm = { username: '', password: '', error: '', shake: false, sessionExpired: false };
+      if (user.role !== 'admin' && this.currentSection === 'admin') {
+        this.currentSection = 'inicio';
+      }
+    },
+
+    saveNewPassword() {
+      const pwd = this.changePwdForm.newPassword.trim();
+      const confirm = this.changePwdForm.confirmPassword.trim();
+      if (!pwd) { this.changePwdForm.error = 'Ingresa una contraseña.'; return; }
+      if (pwd.length < 6) { this.changePwdForm.error = 'La contraseña debe tener al menos 6 caracteres.'; return; }
+      if (pwd !== confirm) { this.changePwdForm.error = 'Las contraseñas no coinciden.'; return; }
+      const idx = this.adminUsers.findIndex(u => u.id === this.changePwdForm.userId);
+      if (idx >= 0) {
+        this.adminUsers[idx].password = pwd;
+        this.adminUsers[idx].mustChangePassword = false;
+        this._saveUsers();
+        const user = this.adminUsers[idx];
+        this.changePwdForm = { show: false, newPassword: '', confirmPassword: '', error: '', shake: false, userId: null };
+        this._loginPortalUser(user);
+      }
+    },
+
     portalLogout() {
       this._clearSession('portal');
       this.portalAuthenticated = false;
       this.portalCurrentUser = '';
+      this.portalCurrentUserRole = '';
+      this.adminAuthenticated = false;
+      this.adminCurrentUser = '';
       this.portalLoginForm = { username: '', password: '', error: '', shake: false, sessionExpired: false };
     },
 
