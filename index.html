@@ -712,9 +712,6 @@
         <h2 class="section-title">Panel de Administración</h2>
         <div class="flex items-center gap-3">
           <span class="text-xs text-gray-400" x-show="adminCurrentUser"><i class="fas fa-user-circle mr-1"></i><span x-text="adminCurrentUser"></span></span>
-          <button @click="adminLogout()" class="btn-sm text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
-            <i class="fas fa-sign-out-alt mr-1"></i>Cerrar Sesión
-          </button>
         </div>
       </div>
       <p class="section-subtitle mb-5">Gestiona los contenidos del portal · <span class="text-green-600 font-semibold">Los datos persisten en el navegador</span></p>
@@ -1242,7 +1239,6 @@
               </tbody>
             </table>
           </div>
-        </div>
 
         <!-- GitHub Config card -->
         <div class="bg-white rounded-xl p-5 shadow-sm mt-5" style="border-left:4px solid var(--cyan)">
@@ -1301,6 +1297,7 @@
             <span class="text-sm font-medium text-green-600" x-show="sessionConfigSaved" x-text="'✅ Configuración guardada'"></span>
           </div>
         </div>
+        </div><!-- /usuarios -->
 
       </div><!-- /list panels -->
     </section>
