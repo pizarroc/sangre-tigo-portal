@@ -407,12 +407,15 @@
 
                 <!-- Recursos del Valor -->
                 <div class="mb-6">
-                  <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2"><i class="fas fa-folder-open" style="color:var(--navy)"></i> Recursos disponibles</h3>
-                  <template x-if="resources.filter(r => r.valor === selectedValue.id || r.valor === 'todos').length === 0">
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-gray-700 flex items-center gap-2"><i class="fas fa-folder-open" style="color:var(--navy)"></i> Recursos disponibles</h3>
+                    <button @click="navigate('recursos')" class="flex items-center gap-1 text-xs font-semibold" style="color:var(--cyan)">Ver biblioteca completa <i class="fas fa-arrow-right text-xs"></i></button>
+                  </div>
+                  <template x-if="resources.filter(r => r.valor === selectedValue.id).length === 0">
                     <p class="text-sm text-gray-400 italic">No hay recursos cargados para este valor aún.</p>
                   </template>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <template x-for="r in resources.filter(r => r.valor === selectedValue.id || r.valor === 'todos')" :key="r.id">
+                    <template x-for="r in resources.filter(r => r.valor === selectedValue.id)" :key="r.id">
                       <div class="resource-card" style="padding:14px">
                         <div class="flex justify-between items-start mb-2">
                           <span class="badge" :class="'badge-'+(r.valor==='todos'?'todos':r.valor)" x-text="r.valor==='todos'?'General':r.valor.charAt(0).toUpperCase()+r.valor.slice(1)"></span>
